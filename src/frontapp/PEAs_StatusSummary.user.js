@@ -1,15 +1,14 @@
 // ==UserScript==
 // @name         Front: Status Check for PEAs
 // @namespace    https://github.com/dm-alt/USM-scripts
-// @version      1.0
+// @version      1.1
 // @description  Two tables: Available(<4) and Busy(any). 
 // @author       Danish Murad
 // @license      MIT
 // @homepageURL  https://github.com/dm-alt/USM-scripts
 // @supportURL   https://github.com/dm-alt/USM-scripts/issues
 // @match        https://us-mobile.frontapp.com/*
-// @run-at       document-idle
-// @grant        none
+// @grant        GM_addStyle
 // ==/UserScript==
 
 (function () {
