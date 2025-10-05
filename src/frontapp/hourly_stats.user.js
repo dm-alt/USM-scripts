@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Front Analytics – Hourly Stats
 // @namespace    https://github.com/dm-alt/USM-scripts
-// @version      1.0
+// @version      1.1
 // @description  Modal view of hourly Resolution/Reply/First reply with averages. CSV export + snapshot-to-clipboard included.
 // @author       Danish Murad
 // @license      MIT
