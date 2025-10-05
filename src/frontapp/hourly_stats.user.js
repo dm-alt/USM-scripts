@@ -1,13 +1,13 @@
 // ==UserScript==
 // @name         Front Analytics – Hourly Stats
 // @namespace    https://github.com/dm-alt/USM-scripts
-// @version      1.1
+// @version      1.2
 // @description  Modal view of hourly Resolution/Reply/First reply with averages. CSV export + snapshot-to-clipboard included.
 // @author       Danish Murad
 // @license      MIT
 // @homepageURL  https://github.com/dm-alt/USM-scripts
 // @supportURL   https://github.com/dm-alt/USM-scripts/issues
-// @match        https://us-mobile.frontapp.com/analytics/*
+// @match        https://us-mobile.frontapp.com/*
 // @run-at       document-idle
 // @grant        none
 // ==/UserScript==
@@ -336,7 +336,7 @@
     modal.innerHTML = `
       <div style="min-width:420px; max-width:90vw; background:#16161c; border:1px solid #303244; color:#fff; border-radius:12px; padding:16px; box-shadow:0 10px 32px rgba(0,0,0,.5);">
         <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
-          <div style="font:600 15px system-ui;">Hourly “Workload over time”</div>
+          <div style="font:600 15px system-ui;">Hourly “Workload over time” - Chats</div>
           <div id="hs-day" style="font:12px system-ui; opacity:.9;">Date: <b>${day}</b></div>
         </div>
         <div style="font:12px system-ui;opacity:.85;margin-bottom:12px;">Select hour range for the single day in view. Inbox must be <b>Chats</b>.</div>
