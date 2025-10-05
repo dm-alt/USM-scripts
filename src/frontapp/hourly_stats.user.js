@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Front Analytics – Hourly Stats
 // @namespace    https://github.com/dm-alt/USM-scripts
-// @version      1.3
+// @version      1.5
 // @description  Modal view of hourly Resolution/Reply/First reply with averages. CSV export + snapshot-to-clipboard included.
 // @author       Danish Murad
 // @license      MIT
@@ -82,7 +82,7 @@
     return norm.includes('ischats') && !/\bemail(s)?\b/i.test(raw);
   }
 
-  /* ---------- API-job method ---------- */
+  /* ---------- API-job helpers ---------- */
   const latestWorkloadPerf = () => {
     const hit = [...performance.getEntriesByType('resource')].reverse()
       .find(e => /\/anltcs\/metrics\/workload\/([0-9a-f]{64})/.test(e.name));
@@ -126,34 +126,61 @@
     const j = await res.json(); return j.jobUid || j.uid || j.id;
   };
 
+  // WAIT for the observed job to have usable parameters
+  async function waitForJobParams(baseJobURL, uid, timeout=15000) {
+    const t0 = performance.now();
+    let last;
+    while (performance.now() - t0 < timeout) {
+      last = await getJob(baseJobURL, uid);
+      const p = last?.parameters || last;
+      if (p?.period && p?.filters) {
+        const namespace = p.namespace || (baseJobURL.match(/\/namespaces\/([^/]+)/)||[])[1] || '';
+        return { period: p.period, filters: p.filters, namespace };
+      }
+      await sleep(200);
+    }
+    throw new Error('Could not read period/filters from observed job.');
+  }
+
+  // Read params from the most recent workload request (after it’s ready)
   async function cloneParams(baseJobURL) {
     const perf = latestWorkloadPerf();
     if (!perf) throw new Error('No workload job observed. Flip metric/date once and try again.');
-    const job = await getJob(baseJobURL, perf.uid);
-    const p = job.parameters || job;
-    if (!p || !p.period || !p.filters) throw new Error('Could not read period/filters from observed job.');
-    return { period: p.period, filters: p.filters, namespace: p.namespace || (baseJobURL.match(/\/namespaces\/([^/]+)/)||[])[1] || '' };
+    return waitForJobParams(baseJobURL, perf.uid, 15000);
   }
 
-  function extract24(g) {
-    if (!g || g.metric_type !== 'time_graph') return null;
+  /* ---------- Always interpret metric values as SECONDS ---------- */
+  function extract24Seconds(g) {
+    if (!g) return null;
     const out = Array(24).fill(null);
-    if (Array.isArray(g.vals) && g.vals.length) {
-      for (const row of g.vals) {
-        const lab = (row.label||'').trim();
-        const m = lab.match(/^(\d{1,2})\s*(AM|PM)$/i);
-        let h = null;
-        if (m) { h = (+m[1])%12; if (m[2].toUpperCase()==='PM') h += 12; }
-        else if (row.start) { h = new Date(row.start).getHours(); }
-        if (h!=null) out[h] = Number(row.v);
+    const set = (h, v) => { if (h==null) return; const n=Number(v); if (isFinite(n)) out[h]=n; };
+
+    const hFromLabel = (lab)=>{
+      const m = String(lab||'').trim().match(/^(\d{1,2})\s*(AM|PM)$/i);
+      if (!m) return null;
+      let h=(+m[1])%12; if (m[2].toUpperCase()==='PM') h+=12;
+      return h;
+    };
+    const hFromTs = (ts)=>{ const d=new Date(ts); return isNaN(d)?null:d.getHours(); };
+
+    if (Array.isArray(g.vals)) {
+      for (const r of g.vals) set(hFromLabel(r.label) ?? hFromTs(r.start ?? r.ts), r.v ?? r.value ?? r.y ?? r.avg);
+    } else if (Array.isArray(g.values)) {
+      for (let i=0;i<g.values.length;i++){
+        const it = g.values[i];
+        if (typeof it === 'number') set(i, it);
+        else set(hFromLabel(it.label) ?? hFromTs(it.start ?? it.ts) ?? i, it.v ?? it.value ?? it.y ?? it.avg);
       }
-      return out;
+    } else if (Array.isArray(g.series)) {
+      const s = g.series[0]?.values || [];
+      for (let i=0;i<s.length;i++){
+        const it=s[i];
+        set(hFromLabel(it.label) ?? hFromTs(it.start ?? it.ts) ?? i, it.v ?? it.value ?? it.y ?? it.avg);
+      }
+    } else {
+      return null;
     }
-    if (Array.isArray(g.values) && g.values.length>=24) {
-      for (let h=0; h<24; h++) out[h] = Number(g.values[h]);
-      return out;
-    }
-    return null;
+    return out;
   }
 
   async function getHourlySeries() {
@@ -171,28 +198,26 @@
     if (!job || job.status!=='done') throw new Error('Analytics job did not complete in time.');
 
     const m = job.metrics || {};
-    const serRes   = extract24(m.ticket_avg_resolution_time_graph);
-    const serReply = extract24(m.response_graph);
-    const serFirst = extract24(m.first_response_graph);
+    const serRes   = extract24Seconds(m.ticket_avg_resolution_time_graph);
+    const serReply = extract24Seconds(m.response_graph);
+    const serFirst = extract24Seconds(m.first_response_graph);
 
     return { serRes, serReply, serFirst, period, jobUid, returnedKeys: Object.keys(m) };
   }
 
-  /* ---------- NEW: rows -> PNG with title lines (origin-clean canvas) ---------- */
+  /* ---------- rows->PNG (for snapshot) ---------- */
   async function rowsToPNGBlob(rows, opts={}) {
     const {
-      titleLines = [],                      // <<— add date (and optional range) here
+      titleLines = [],
       font = '13px -apple-system, system-ui, "Segoe UI", Roboto, Helvetica, Arial',
       headerFont = '600 13px -apple-system, system-ui, "Segoe UI", Roboto, Helvetica, Arial',
       titleFont = '600 15px -apple-system, system-ui, "Segoe UI", Roboto, Helvetica, Arial',
       subtitleFont = '12px -apple-system, system-ui, "Segoe UI", Roboto, Helvetica, Arial',
-      bg = '#0f0f14',
       card = '#16161c',
       grid = '#1e2030',
       headBorder = '#2a2c3e',
       headerBg = '#16161c',
       avgBg = '#171929',
-      text = '#ffffff',
       padX = 8,
       rowH = 28,
       headerH = 30,
@@ -206,7 +231,6 @@
     const mCtx = mCanvas.getContext('2d');
     const measure = (f, s) => { mCtx.font = f; return Math.ceil(mCtx.measureText(String(s)).width); };
 
-    // measure table col widths
     const cols = rows[0].length;
     const colWidths = Array(cols).fill(0);
     for (let c=0;c<cols;c++) {
@@ -215,19 +239,17 @@
         ...rows.slice(1).map(r => measure(font, r[c]))
       ) + padX*2;
     }
-    colWidths[0] = Math.max(colWidths[0], 110);         // "Hour"
+    colWidths[0] = Math.max(colWidths[0], 110);
     for (let c=1;c<cols;c++) colWidths[c] = Math.max(colWidths[c], 140);
 
     const tableW = colWidths.reduce((a,b)=>a+b,0);
     const bodyRows = rows.length - 1;
     const tableH = headerH + bodyRows*rowH;
 
-    // measure title width and height
-    let titleBlockH = 0;
-    let titleW = 0;
+    let titleBlockH = 0, titleW = 0;
     if (titleLines.length) {
       titleW = Math.max(...titleLines.map((t,i)=>measure(i===0?titleFont:subtitleFont, t))) + padX*2;
-      titleBlockH = titleLines.length * 20 + titleGap; // rough line height
+      titleBlockH = titleLines.length * 20 + titleGap;
     }
 
     const cardW = Math.max(tableW, titleW);
@@ -242,7 +264,6 @@
     const ctx = canvas.getContext('2d');
     ctx.scale(scale, scale);
 
-    // card bg with rounded corners
     ctx.fillStyle = card;
     const r = borderRadius;
     ctx.beginPath();
@@ -254,25 +275,22 @@
     ctx.closePath();
     ctx.fill();
 
-    // title lines
     let ty = outerPad + 10;
     for (let i=0;i<titleLines.length;i++) {
       ctx.fillStyle = '#ffffff';
-      ctx.font = (i===0 ? titleFont : subtitleFont);
+      ctx.font = (i===0 ? '600 15px system-ui' : '12px system-ui');
       ctx.textBaseline = 'top';
       ctx.fillText(String(titleLines[i]), outerPad + padX, ty);
       ty += 20;
     }
     if (titleLines.length) ty += (titleGap - 10);
 
-    // header bg & border
     const tableTop = outerPad + titleBlockH;
     ctx.fillStyle = headerBg;
     ctx.fillRect(outerPad, tableTop, cardW, headerH);
     ctx.fillStyle = headBorder;
     ctx.fillRect(outerPad, tableTop + headerH - 1, cardW, 1);
 
-    // grid rows & avg highlight
     let y = tableTop + headerH;
     for (let i=1;i<rows.length;i++, y+=rowH) {
       const isAvg = rows[i][0] === 'Average';
@@ -284,7 +302,6 @@
       ctx.fillRect(outerPad, y+rowH-1, cardW, 1);
     }
 
-    // column separators
     let x = outerPad;
     ctx.fillStyle = grid;
     for (let c=0;c<cols-1;c++) {
@@ -292,9 +309,8 @@
       ctx.fillRect(x, tableTop, 1, tableH);
     }
 
-    // header text
     ctx.fillStyle = '#ffffff';
-    ctx.font = headerFont;
+    ctx.font = '600 13px system-ui';
     ctx.textBaseline = 'middle';
     x = outerPad;
     for (let c=0;c<cols;c++) {
@@ -302,8 +318,7 @@
       x += colWidths[c];
     }
 
-    // body text
-    ctx.font = font;
+    ctx.font = '13px system-ui';
     y = tableTop + headerH + rowH/2;
     for (let i=1;i<rows.length;i++, y+=rowH) {
       x = outerPad;
@@ -405,7 +420,6 @@
       const s = +startSel.value, e = +endSel.value;
       if (e < s) { alert('End hour must be after start hour.'); return; }
 
-      // refresh date label in case user changed the picker behind the scenes
       const currentDay = selectedDateString();
       dayEl.innerHTML = `Date: <b>${currentDay}</b>`;
 
@@ -433,7 +447,6 @@
           fmtSec(serFirst ? avg(serFirst.slice(s, e+1)) : null),
         ]);
 
-        // Display (HTML)
         out.innerHTML = `
           <div style="font:12px system-ui; opacity:.9; margin:4px 0 8px 2px;">
             <b>Date:</b> ${currentDay}
@@ -441,7 +454,6 @@
           ${buildTableHTML(rows)}
         `;
 
-        // Prepare CSV: add a top metadata row for Date, then a blank line, then table
         lastRows = rows;
         const csvRows = [['Date', currentDay], []].concat(rows);
         lastCSV = toCSV(csvRows);
@@ -450,7 +462,6 @@
         const eLab = HOUR_LABELS_12[e].replace(/\s/g,'');
         lastFilename = `front-hourly_${currentDay}_${sLab}-${eLab}.csv`;
 
-        // Title lines for snapshot (drawn on canvas to avoid taint)
         lastTitleLines = [
           'Hourly “Workload over time” — Chats',
           `Date: ${currentDay}   •   Range: ${HOUR_LABELS_12[s]} – ${HOUR_LABELS_12[e]}`
