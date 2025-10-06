@@ -2,13 +2,30 @@
 <html>
 <head>
     <meta charset="utf-8">
-    <title>Team Automation Scripts Library</title>
+    <title>USM - Optimized Workflows & Automation Scripts by Danish Murad</title>
     <style>
         body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; max-width: 800px; margin: 40px auto; background-color: #f7f7f7; padding: 20px; }
-        h1 { border-bottom: 2px solid #ccc; padding-bottom: 10px; }
-        .app-section { background: white; padding: 20px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); margin-bottom: 20px; }
+        h1 { border-bottom: 2px solid #ccc; padding-bottom: 10px; color: #1f2937; }
+        .author-tag { font-size: 14px; color: #6b7280; margin-bottom: 20px; display: block; }
+        .app-section { 
+            background: white; 
+            padding: 20px; 
+            border-radius: 10px; 
+            box-shadow: 0 4px 12px rgba(0,0,0,0.08); 
+            margin-bottom: 20px; 
+        }
         h2 { color: #0366d6; margin-top: 0; }
-        .script-item { border-bottom: 1px dashed #eee; padding: 10px 0; display: flex; justify-content: space-between; align-items: center; }
+        .script-item { 
+            border-bottom: 1px dashed #eee; 
+            padding: 10px 0; 
+            display: flex; 
+            justify-content: space-between; 
+            align-items: center; 
+            transition: background-color 0.15s;
+        }
+        .script-item:hover {
+            background-color: #fcfcfc;
+        }
         .script-item:last-child { border-bottom: none; }
         .install-btn { 
             background-color: #2ea44f; 
@@ -19,31 +36,64 @@
             cursor: pointer; 
             text-decoration: none; 
             font-weight: 600; 
-            transition: background-color 0.2s;
+            transition: background-color 0.2s, transform 0.1s;
+            min-width: 120px; 
         }
+        /* No more copy specific styling needed */
         .install-btn:hover { background-color: #22863a; }
+        .install-btn:active { transform: translateY(1px); }
+
+        .install-instructions { background: #e0f2f1; padding: 15px; border-radius: 8px; margin-top: 20px; }
+        .install-instructions ol { margin: 10px 0 0; padding-left: 20px; }
     </style>
 </head>
 <body>
-    <h1>Team Automation Scripts Library</h1>
-    <p>Welcome! Click the 'Install' button next to the script you need. **Tampermonkey** extension is required.</p>
+    <h1>USM - Optimized Workflows & Automation Scripts</h1>
+    <span class="author-tag">Built by Danish Murad</span>
+    
+    <p>Welcome! <b>Tampermonkey</b> is required to run these scripts.</p>
+    <p style="font-size: 15px; font-weight: 600; color: #059669;">Choose a script below and click the "Install Script" button to install directly.</p>
     
     <div class="app-section">
         <h2>Front App Scripts</h2>
-    
-    <div class="script-item">
-        <div>
-            <strong>Hourly Workload Exporter</strong>
-            <p style="font-size: 12px; color: #555; margin: 2px 0;">Adds a button to Workload page to export hourly Resolution, Reply, and First Reply times.</p>
+        
+        <div class="script-item">
+            <div>
+                <strong>Hourly Stats of Avg. Resolution Time, Avg. Reply Time and Avg. First Reply Time - Chats</strong>
+                <p style="font-size: 12px; color: #555; margin: 2px 0;">Adds a button to the Analytics page to view hourly stats of Avg. Resolution Time, Avg. Reply Time, and Avg. First Reply Time. Expor to CSV and Snapshot-to-Clipboard features are added.</p>
+            </div>
+            <!-- Changed back to direct link <a> element for simple install -->
+            <a class="install-btn" 
+               href="https://dm-alt.github.io/USM-scripts/src/frontapp/hourly_stats.user.js" 
+               target="_blank">
+                Install Script
+            </a>
         </div>
-        <a class="install-btn" href="https://dm-alt.github.io/USM-scripts/src/frontapp/hourly_stats.user.js">Install</a>
-    </div>
-    
-    <div class="script-item">
-        <div>
-            <strong>Status Check - PEAs (Busy/Low-Load)</strong>
-            <p style="font-size: 12px; color: #555; margin: 2px 0;">Adds a modal dashboard showing who is on low capacity (Less than 4 chats) vs. busy (any chats). Use Shift+B hotkey.</p>
+        
+        <div class="script-item">
+            <div>
+                <strong>Status Check - PEAs (Busy/Low-Capacity)</strong>
+                <p style="font-size: 12px; color: #555; margin: 2px 0;">Adds a modal dashboard showing who is on low capacity (Less than 4 chats) vs. busy (any chats). Use <b>Shift+B</b> hotkey.</p>
+            </div>
+            <!-- Changed back to direct link <a> element for simple install -->
+            <a class="install-btn" 
+               href="https://dm-alt.github.io/USM-scripts/src/frontapp/PEAs_StatusSummary.user.js" 
+               target="_blank">
+                Install Script
+            </a>
         </div>
-        <a class="install-btn" href="https://dm-alt.github.io/USM-scripts/src/frontapp/PEAs_StatusSummary.user.js">Install</a>
     </div>
+
+    <div class="install-instructions">
+        <h3>Installation Guide (Simplified)</h3>
+        <ol>
+            <li>Click the <b>"Install Script"</b> button for the script you want.</li>
+            <li>Tampermonkey will automatically open a new tab with the installation screen.</li>
+            <li>Click the <b>"Install"</b> button on the Tampermonkey screen.</li>
+            <li><b>Refresh Front:</b> Reload the Front App page to activate the script.</li>
+        </ol>
     </div>
+
+    <!-- Removed the JavaScript copyLink function as it's no longer needed -->
+</body>
+</html>
