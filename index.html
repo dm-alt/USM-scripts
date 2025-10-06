@@ -22,11 +22,21 @@
             justify-content: space-between; 
             align-items: center; 
             transition: background-color 0.15s;
+            /* ADDED GAP for spacing between text and button */
+            gap: 20px; 
         }
         .script-item:hover {
             background-color: #fcfcfc;
         }
         .script-item:last-child { border-bottom: none; }
+        
+        /* New style to ensure the text takes up maximum space */
+        .script-text {
+            flex-grow: 1;
+            /* Prevents the text from causing layout issues on overflow */
+            min-width: 0; 
+        }
+
         .install-btn { 
             background-color: #2ea44f; 
             color: white; 
@@ -38,6 +48,13 @@
             font-weight: 600; 
             transition: background-color 0.2s, transform 0.1s;
             min-width: 120px; 
+            /* === FIX: Center text horizontally and vertically === */
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            /* ================================================== */
+            /* Ensure button remains fixed size and does not grow */
+            flex-shrink: 0; 
         }
         /* No more copy specific styling needed */
         .install-btn:hover { background-color: #22863a; }
@@ -58,9 +75,9 @@
         <h2>Front App Scripts</h2>
         
         <div class="script-item">
-            <div>
-                <strong>Hourly Stats of Avg. Resolution Time, Avg. Reply Time and Avg. First Reply Time - Chats</strong>
-                <p style="font-size: 12px; color: #555; margin: 2px 0;">Adds a button to the Analytics page to view hourly stats of Avg. Resolution Time, Avg. Reply Time, and Avg. First Reply Time. Expor to CSV and Snapshot-to-Clipboard features are added.</p>
+            <div class="script-text">
+                <strong>Hourly Stats - Chats</strong>
+                <p style="font-size: 12px; color: #555; margin: 2px 0;">Adds a button to the Analytics page to view hourly stats of Avg. Resolution Time, Avg. Reply Time, and Avg. First Reply Time. Export to CSV and Snapshot-to-Clipboard features are added.</p>
             </div>
             <!-- Changed back to direct link <a> element for simple install -->
             <a class="install-btn" 
@@ -71,7 +88,7 @@
         </div>
         
         <div class="script-item">
-            <div>
+            <div class="script-text">
                 <strong>Status Check - PEAs (Busy/Low-Capacity)</strong>
                 <p style="font-size: 12px; color: #555; margin: 2px 0;">Adds a modal dashboard showing who is on low capacity (Less than 4 chats) vs. busy (any chats). Use <b>Shift+B</b> hotkey.</p>
             </div>
