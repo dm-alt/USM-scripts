@@ -1,8 +1,8 @@
 // ==UserScript==
 // @name         Front Analytics – Hourly Stats for Chats
 // @namespace    https://github.com/dm-alt/USM-scripts
-// @version      1.7
-// @description  Modal view of hourly Resolution/Reply/First reply with averages. CSV export + snapshot-to-clipboard included.
+// @version      1.8
+// @description  Modal view of hourly Resolution/Reply/First reply stats for chats inbox. CSV export + snapshot-to-clipboard included.
 // @author       Danish Murad
 // @license      MIT
 // @homepageURL  https://github.com/dm-alt/USM-scripts
@@ -15,7 +15,6 @@
 (function () {
   'use strict';
 
-  /* ----------------- tiny utils ----------------- */
   const sleep = (ms)=>new Promise(r=>setTimeout(r,ms));
   const log  = (...a)=>console.log('%c[Hourly]', 'color:#8cf', ...a);
   const warn = (...a)=>console.warn('%c[Hourly]', 'color:#fc8', ...a);
@@ -29,7 +28,6 @@
   const download = (text,name)=>{ const b=new Blob([text],{type:'text/csv;charset=utf-8;'}); const a=document.createElement('a');
     a.href=URL.createObjectURL(b); a.download=name; document.body.appendChild(a); a.click(); setTimeout(()=>{URL.revokeObjectURL(a.href); a.remove();},0); };
 
-  /* ----------------- UI sanity checks ----------------- */
   const parseUiDate=(el)=>{ if(!el) return null; const d=new Date(el.textContent.trim()); return isNaN(d)?null:d; };
   const selectedDateString=()=>{ const sEl=document.querySelector('[data-testid="selectedStartDate"], .dateRangeComboBox__StyledStartDate-sc-e0f4ce85-2');
     const d=parseUiDate(sEl)||new Date(); const yyyy=d.getFullYear(), mm=String(d.getMonth()+1).padStart(2,'0'), dd=String(d.getDate()).padStart(2,'0'); return `${yyyy}-${mm}-${dd}`; };
@@ -50,8 +48,6 @@
     return norm.includes('ischats') && !/\bemail(s)?\b/i.test(raw);
   }
 
-  /* ----------------- Robust metrics capture ----------------- */
-  // Accept ANY metrics collection, not just "workload".
   const METRICS_RE = /\/anltcs\/metrics\/([^/]+)\/([0-9a-f]{64})/;
   const parseMetricsUrl = (urlStr)=>{
     const m = String(urlStr||'').match(METRICS_RE);
@@ -134,7 +130,6 @@
     throw new Error('Could not read period/filters from observed job.');
   }
 
-  /* ----------------- Interpret graph values as seconds ----------------- */
   function extract24Seconds(g){
     if(!g) return null;
     const out=Array(24).fill(null);
@@ -159,8 +154,7 @@
   }
 
   async function getHourlySeries(){
-    // Capture ANY metrics call, read its params, then post to workload.
-    const ctx = await getContextOrWait(); // {collection, uid, metricsBase, workloadBase}
+    const ctx = await getContextOrWait();
     const { period, filters, namespace } = await waitForJobParams(ctx.metricsBase, ctx.uid, 20000);
 
     const METRICS_NAMES = [
@@ -183,7 +177,6 @@
     };
   }
 
-  /* ----------------- rows -> PNG (snapshot) ----------------- */
   async function rowsToPNGBlob(rows, {titleLines=[]}={}){
     const padX=8,rowH=28,headerH=30,outerPad=12,borderRadius=12,grid='#1e2030',headBorder='#2a2c3e',headerBg='#16161c',avgBg='#171929';
     const m=document.createElement('canvas').getContext('2d'); const mw=(f,s)=>{m.font=f; return Math.ceil(m.measureText(String(s)).width);};
@@ -203,12 +196,10 @@
     g.arcTo(outerPad+cardW,outerPad+cardH,outerPad,outerPad+cardH,r); g.arcTo(outerPad,outerPad+cardH,outerPad,outerPad,r);
     g.arcTo(outerPad,outerPad,outerPad+cardW,outerPad,r); g.closePath(); g.fill();
 
-    // title
     let ty=outerPad+10;
     for(let i=0;i<titleLines.length;i++){ g.fillStyle='#fff'; g.font=(i===0?'600 15px system-ui':'12px system-ui'); g.textBaseline='top'; g.fillText(String(titleLines[i]),outerPad+padX,ty); ty+=20; }
     if (titleLines.length) ty += (6-10);
 
-    // header & grid
     const top=outerPad+titleH;
     g.fillStyle=headerBg; g.fillRect(outerPad,top,cardW,headerH);
     g.fillStyle=headBorder; g.fillRect(outerPad,top+headerH-1,cardW,1);
@@ -227,10 +218,9 @@
   async function copyPNGToClipboard(blob){ if(!navigator.clipboard||!window.ClipboardItem) throw new Error('Clipboard image API not available.');
     await navigator.clipboard.write([new ClipboardItem({'image/png':blob})]); }
 
-  /* ----------------- Modal ----------------- */
   function openModal(){
     if (!isSameDayRange()) { alert('Please set the date range to a SINGLE DAY first.'); return; }
-    if (!isChatsOnly())    { alert('Please set the inbox filter to “Is · Chats” first.\n\nSeen: ' + (window.__hourlyInboxText || '(no chip found)')); return; }
+    if (!isChatsOnly())    { alert('Please set the inbox filter to “Chats” first.\n\nSeen: ' + (window.__hourlyInboxText || '(no chip found)')); return; }
 
     const day = selectedDateString();
     const modal=document.createElement('div'); modal.id='hourly-stats-modal';
@@ -321,7 +311,6 @@
     return `<table style="width:100%;border-collapse:collapse;font:13px system-ui;">${head}<tbody>${body}</tbody></table>`;
   };
 
-  /* ----------------- page button ----------------- */
   function ensureButton(){
     if (document.getElementById('hourly-stats-modal-btn')) return;
     const anchor = Array.from(document.querySelectorAll('button,div,span')).find(el=>el.textContent.trim()==='All views');
